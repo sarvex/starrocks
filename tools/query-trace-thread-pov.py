@@ -92,10 +92,22 @@ def fix_events(fh, events, prefilters, postfilters):
     headers = []
     headers.append(dict(name='process_name', ph='M', pid=0, args={'name': 'starrocks_be'}))
     for tid in io_tid_set:
-        d = dict(name='thread_name', ph="M", pid=0, tid=tid, args={"name": "IOThread-%s" % tid})
+        d = dict(
+            name='thread_name',
+            ph="M",
+            pid=0,
+            tid=tid,
+            args={"name": f"IOThread-{tid}"},
+        )
         headers.append(d)
     for tid in exec_tid_set:
-        d = dict(name='thread_name', ph="M", pid=0, tid=tid, args={"name": "ExecThread-%s" % tid})
+        d = dict(
+            name='thread_name',
+            ph="M",
+            pid=0,
+            tid=tid,
+            args={"name": f"ExecThread-{tid}"},
+        )
         headers.append(d)
     for d in headers:
         fh.write(json.dumps(d) + ',\n')
@@ -120,15 +132,9 @@ def main():
     parser.add_argument('--drill', help='to drill down a single operator by name')
     args = parser.parse_args()
 
-    fin = sys.stdin
-    if args.input:
-        fin = open(args.input)
-    fout = sys.stdout
-    if args.output:
-        fout = open(args.output, 'w')
-
+    fin = open(args.input) if args.input else sys.stdin
+    fout = open(args.output, 'w') if args.output else sys.stdout
     prefilters = []
-    postfilters = []
     if not args.v:
         prefilters.append(lambda x: x.get('cat') in ('push_chunk', 'pull_chunk'))
 
@@ -137,6 +143,7 @@ def main():
     if args.drill:
         drill_events(fout, events, args.drill)
     else:
+        postfilters = []
         fix_events(fout, events, prefilters, postfilters)
 
 

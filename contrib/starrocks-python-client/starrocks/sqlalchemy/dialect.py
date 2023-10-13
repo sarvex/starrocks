@@ -47,7 +47,7 @@ class StarRocksDialect(MySQLDialect_mysqldb):
         quote = self.identifier_preparer.quote_identifier
         full_name = quote(table_name)
         if schema:
-            full_name = "{}.{}".format(quote(schema), full_name)
+            full_name = f"{quote(schema)}.{full_name}"
 
         res = connection.execute(f"DESCRIBE {full_name}")
         return res.first() is not None
@@ -58,16 +58,11 @@ class StarRocksDialect(MySQLDialect_mysqldb):
 
     def get_table_names(self, connection, schema=None, **kw):
         """Return a Unicode SHOW TABLES from a given schema."""
-        if schema is not None:
-            current_schema = schema
-        else:
-            current_schema = self.default_schema_name
-
+        current_schema = schema if schema is not None else self.default_schema_name
         charset = self._connection_charset
 
         rp = connection.exec_driver_sql(
-            "SHOW FULL TABLES FROM %s"
-            % self.identifier_preparer.quote_identifier(current_schema)
+            f"SHOW FULL TABLES FROM {self.identifier_preparer.quote_identifier(current_schema)}"
         )
 
         return [
@@ -81,8 +76,7 @@ class StarRocksDialect(MySQLDialect_mysqldb):
             schema = self.default_schema_name
         charset = self._connection_charset
         rp = connection.exec_driver_sql(
-            "SHOW FULL TABLES FROM %s"
-            % self.identifier_preparer.quote_identifier(schema)
+            f"SHOW FULL TABLES FROM {self.identifier_preparer.quote_identifier(schema)}"
         )
         return [
             row[0]
@@ -98,7 +92,7 @@ class StarRocksDialect(MySQLDialect_mysqldb):
         quote = self.identifier_preparer.quote_identifier
         full_name = quote(table_name)
         if schema:
-            full_name = "{}.{}".format(quote(schema), full_name)
+            full_name = f"{quote(schema)}.{full_name}"
 
         res = connection.execute(f"SHOW COLUMNS FROM {full_name}")
         columns = []

@@ -71,12 +71,10 @@ class ChooseCase(object):
             tools.assert_equal(len(self.sql), len(self.result), "sql and result nums not match")
             case_dict = OrderedDict(zip(self.sql, self.result))
 
-            case_id = 1
-            case_dict_str = ""
-            for sql, result in case_dict.items():
-                case_dict_str += "ID: %s\nsql: %s\nresult: %s\n" % (case_id, sql, result)
-                case_id += 1
-
+            case_dict_str = "".join(
+                "ID: %s\nsql: %s\nresult: %s\n" % (case_id, sql, result)
+                for case_id, (sql, result) in enumerate(case_dict.items(), start=1)
+            )
             return """---- CASE INFO ----
 [name]: {0}
 [file]: {1}
@@ -107,10 +105,10 @@ class ChooseCase(object):
 
     def list_t_r_files(self, regex):
         """list test files"""
-        file_regex = re.compile(r"%s" % regex) if regex is not None else None
+        file_regex = re.compile(f"{regex}") if regex is not None else None
 
         if not os.path.exists(self.case_dir):
-            print("** ERROR: Case path not exist: %s! **" % self.case_dir)
+            print(f"** ERROR: Case path not exist: {self.case_dir}! **")
             sys.exit(1)
 
         # path is single file
@@ -121,7 +119,7 @@ class ChooseCase(object):
             elif "/R/" in abs_file_path:
                 self.r.append(abs_file_path)
             else:
-                log.error("unknown sql t/r file: %s" % abs_file_path)
+                log.error(f"unknown sql t/r file: {abs_file_path}")
 
             return
 
@@ -152,7 +150,7 @@ class ChooseCase(object):
         for file in file_list:
             base_file = os.path.basename(file)
             if base_file in skip.skip_files:
-                print('skip file {} because it is in skip_files'.format(file))
+                print(f'skip file {file} because it is in skip_files')
                 continue
 
             self.read_t_r_file(file, case_regex)
@@ -166,7 +164,9 @@ class ChooseCase(object):
 
         file = os.path.abspath(file)[len(os.path.abspath(self.sr_lib_obj.root_path)):].lstrip("/")
 
-        tools.assert_greater(len(f_lines), 0, "case file lines must not be empty: %s" % file)
+        tools.assert_greater(
+            len(f_lines), 0, f"case file lines must not be empty: {file}"
+        )
 
         attr = os.environ.get("attr").split(",") if os.environ.get("attr") != "" else []
 
@@ -187,18 +187,13 @@ class ChooseCase(object):
 
             # line of case info: name/attrs...
             if line_content.startswith(NAME_FLAG):
-                # save previous case
-                if len(tmp_sql) > 0:
-                    if case_regex is not None and not re.compile(case_regex).search(name):
-                        # case name don't match regex
-                        pass
-                    elif attr and any(each_attr not in tags for each_attr in attr):
-                        # case attrs don't match attr filter
-                        pass
-                    elif not attr and "sequential" in tags:
-                        # no attr is confirmed, skip sequential cases in default
-                        pass
-                    else:
+                if case_regex is not None and not re.compile(case_regex).search(name):
+                    pass
+                elif attr and any(each_attr not in tags for each_attr in attr):
+                    # case attrs don't match attr filter
+                    pass
+                elif attr or "sequential" not in tags:
+                    if tmp_sql:
                         self.case_list.append(
                             ChooseCase.CaseTR(self, name, file, copy.deepcopy(tmp_sql), copy.deepcopy(tmp_res), info)
                         )
@@ -217,7 +212,7 @@ class ChooseCase(object):
 
             elif line_content.startswith(RESULT_FLAG) or line_content.startswith(RESULT_END_FLAT):
                 # 1st line of case can't be result
-                tools.assert_true(False, "case file illegal: file: %s, line: %s" % (file, line_id))
+                tools.assert_true(False, f"case file illegal: file: {file}, line: {line_id}")
             else:
                 # 1st line of command, SQL/SHELL/FUNCTION
                 this_line_res = []
@@ -227,15 +222,11 @@ class ChooseCase(object):
                 if line_content.startswith(UNCHECK_FLAG):
                     line_content = line_content[len(UNCHECK_FLAG):]
 
-                if line_content.startswith(SHELL_FLAG) or line_content.startswith(FUNCTION_FLAG):
-                    # shell/function only support 1 line
-                    pass
-                else:
+                if not line_content.startswith(
+                    SHELL_FLAG
+                ) and not line_content.startswith(FUNCTION_FLAG):
                     # SQL lines
-                    if line_content.endswith(";"):
-                        # SQL end with ;, also 1 line
-                        pass
-                    else:
+                    if not line_content.endswith(";"):
                         # SQL support lines, read the SQL lines
                         while line_id < len(f_lines):
                             line_content = f_lines[line_id].rstrip("\n")
@@ -257,19 +248,16 @@ class ChooseCase(object):
                             break
 
                 tmp_sql.append("\n".join(this_line_command))
-                tmp_res.append("\n".join(this_line_res[1:-1] if len(this_line_res) > 0 else []))
+                tmp_res.append("\n".join(this_line_res[1:-1] if this_line_res else []))
 
-        if len(tmp_sql) > 0:
+        if tmp_sql:
             if case_regex is not None and not re.compile(case_regex).search(name):
                 # case name don't match regex
                 pass
             elif attr and any(each_attr not in tags for each_attr in attr):
                 # case attrs don't match attr filter
                 pass
-            elif not attr and "sequential" in tags:
-                # no attr is confirmed, skip sequential cases in default
-                pass
-            else:
+            elif attr or "sequential" not in tags:
                 self.case_list.append(
                     ChooseCase.CaseTR(self, name, file, copy.deepcopy(tmp_sql), copy.deepcopy(tmp_res), info)
                 )
@@ -304,10 +292,10 @@ def choose_cases(record_mode=False):
     # check_db_unique(cases.case_list)
 
     # log info: case list
-    print("case num: %s" % len(cases.case_list))
-    log.info("case num: %s" % len(cases.case_list))
+    print(f"case num: {len(cases.case_list)}")
+    log.info(f"case num: {len(cases.case_list)}")
     for case in cases.case_list:
-        log.info("%s:%s" % (case.file, case.name))
+        log.info(f"{case.file}:{case.name}")
 
     return cases
 

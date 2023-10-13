@@ -47,20 +47,19 @@ class StarRocksRelation(BaseRelation):
     quote_character: str = "`"
 
     def quoted(self, identifier):
-        if '.' in identifier:
-            catalog_db = identifier.split('.')
-            catalog = catalog_db[0]
-            db = catalog_db[1]
-            return "{quote_char}{catalog}{quote_char}.{quote_char}{db}{quote_char}".format(
-                quote_char=self.quote_character,
-                catalog=catalog,
-                db=db
-            )
-        else:
+        if '.' not in identifier:
             return "{quote_char}{identifier}{quote_char}".format(
                 quote_char=self.quote_character,
                 identifier=identifier,
             )
+        catalog_db = identifier.split('.')
+        catalog = catalog_db[0]
+        db = catalog_db[1]
+        return "{quote_char}{catalog}{quote_char}.{quote_char}{db}{quote_char}".format(
+            quote_char=self.quote_character,
+            catalog=catalog,
+            db=db
+        )
 
     @property
     def is_materialized_view(self) -> bool:

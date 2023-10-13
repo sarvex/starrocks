@@ -56,7 +56,11 @@ def get_hostname():
 
 def get_java_version():
     java_home = os.getenv("JAVA_HOME")
-    java_res = subprocess.Popen([java_home + "/bin/java", "-fullversion"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    java_res = subprocess.Popen(
+        [f"{java_home}/bin/java", "-fullversion"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     out, err = java_res.communicate()
 
     if java_res.returncode == 0:
@@ -75,7 +79,9 @@ def skip_write_if_fingerprint_unchanged(file_name, file_content, fingerprint):
             import re
             m = re.search(r"FINGERPRINT: (?P<fingerprint>\w+)", data)
             old_fingerprint = m.group('fingerprint') if m else None
-            print('gen_build_version.py {}: old fingerprint = {}, new fingerprint = {}'.format(file_name, old_fingerprint, fingerprint))
+            print(
+                f'gen_build_version.py {file_name}: old fingerprint = {old_fingerprint}, new fingerprint = {fingerprint}'
+            )
             if old_fingerprint == fingerprint:
                 return
     with open(file_name, 'w') as fh:
@@ -119,7 +125,7 @@ public class Version {{
                                       BUILD_USER=user, BUILD_HOST=host,
                                       JAVA_VERSION=java_version, FINGERPRINT=fingerprint)
 
-    file_name = java_path + "/com/starrocks/common/Version.java"
+    file_name = f"{java_path}/com/starrocks/common/Version.java"
     d = os.path.dirname(file_name)
     if not os.path.exists(d):
         os.makedirs(d)
@@ -159,7 +165,7 @@ const char* STARROCKS_BUILD_HOST = "{BUILD_HOST}";
                                       BUILD_TYPE=build_type, BUILD_TIME=build_time,
                                       BUILD_USER=user, BUILD_HOST=host, FINGERPRINT=fingerprint)
 
-    file_name = cpp_path + "/version.cpp"
+    file_name = f"{cpp_path}/version.cpp"
     d = os.path.dirname(file_name)
     if not os.path.exists(d):
         os.makedirs(d)
