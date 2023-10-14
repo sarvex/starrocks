@@ -23,8 +23,7 @@ output = "./issue_16375.parquet"
 data = [
     pa.array(range(4097), type=pa.int32()),
     pa.array(
-        [[["1"]] for i in range(4097)],
-        type=pa.list_(pa.list_(pa.string())),
+        [[["1"]] for _ in range(4097)], type=pa.list_(pa.list_(pa.string()))
     ),
 ]
 

@@ -44,7 +44,7 @@ def gen_unpack_bit(fb):
     # how many bits in cb
     cb = 0
 
-    for i in range(64):
+    for _ in range(64):
         oss.emit('t = 0;')
         exp = fb
         while exp:
@@ -94,6 +94,3 @@ with open('bit_packing_gen.inc', 'w') as fh:
         fh.write(s)
     s = gen_unpack_driver()
     fh.write(s)
-
-if __name__ == '__main__':
-    pass

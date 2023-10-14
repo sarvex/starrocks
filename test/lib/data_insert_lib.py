@@ -37,32 +37,29 @@ class DataInsertLib(object):
         """return insert sql"""
         sql = "insert into "
         if "database_name" in self.args:
-            sql += "%s." % (self.args["database_name"])
+            sql += f'{self.args["database_name"]}.'
         if "table_name" in self.args:
-            sql += "%s " % (self.args["table_name"])
+            sql += f'{self.args["table_name"]} '
         if "partition_desc" in self.args:
-            sql += "partition (%s)" % (", ".join(self.args["partition_desc"]["partition_list"]))
+            sql += f'partition ({", ".join(self.args["partition_desc"]["partition_list"])})'
         if "with_label" in self.args:
-            sql += "WITH LABEL %s " % (self.args["with_label"])
+            sql += f'WITH LABEL {self.args["with_label"]} '
         if "columns" in self.args:
-            sql += "(%s)" % (", ".join(self.args["columns"]))
+            sql += f'({", ".join(self.args["columns"])})'
         if "values" in self.args:
             values = "values "
             for v_one in self.args["values"]:
                 values += "("
                 for v in v_one:
                     if isinstance(v, tuple):  # use tuple indicate expression
-                        if v[0] == "default":
-                            values += "default, "
-                        else:
-                            values += "%s, " % v[0]
+                        values += "default, " if v[0] == "default" else f"{v[0]}, "
                     elif isinstance(v, str):
-                        values += "'" + str(v) + "', "
+                        values += f"'{str(v)}', "
                     elif v is None:
                         values += "null, "
                     else:
-                        values += str(v) + ", "
-                values = values[:-2] + "), "
+                        values += f"{str(v)}, "
+                values = f"{values[:-2]}), "
             sql += values
             sql = sql[:-2]
         if "query" in self.args:

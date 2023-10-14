@@ -117,7 +117,7 @@ class StarrocksSQLApiLib(object):
     def read_conf(self, path):
         """read conf"""
         config_parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-        config_parser.read("%s/%s" % (root_path, path))
+        config_parser.read(f"{root_path}/{path}")
         self.mysql_host = config_parser.get("mysql-client", "host")
         self.mysql_port = config_parser.get("mysql-client", "port")
         self.mysql_user = config_parser.get("mysql-client", "user")
@@ -151,13 +151,13 @@ class StarrocksSQLApiLib(object):
         create starrocks database if tolerate exist
         """
         if tolerate_exist:
-            sql = "create database if not exists %s" % database_name
+            sql = f"create database if not exists {database_name}"
         else:
-            sql = "create database %s" % database_name
+            sql = f"create database {database_name}"
         return self.execute_sql(sql)
 
     def use_database(self, db_name):
-        return self.execute_sql("use %s" % db_name)
+        return self.execute_sql(f"use {db_name}")
 
     def create_database_and_table(self, database_name, table_name, table_sql_path=None, tolerate_exist=False):
         """
@@ -178,13 +178,15 @@ class StarrocksSQLApiLib(object):
 
         # get sql content
         if table_sql_path:
-            sql = self.get_sql_from_file("%s.sql" % table_name, common_sql_path + "/" + table_sql_path)
+            sql = self.get_sql_from_file(
+                f"{table_name}.sql", f"{common_sql_path}/{table_sql_path}"
+            )
         else:
-            sql = self.get_sql_from_file("%s.sql" % table_name)
+            sql = self.get_sql_from_file(f"{table_name}.sql")
         # replace tolerate exists
         check_if_exists = "IF NOT EXISTS"
         if tolerate_exist and check_if_exists not in sql and check_if_exists.lower() not in sql:
-            sql.replace("CREATE TABLE", "CREATE TABLE %s " % check_if_exists)
+            sql.replace("CREATE TABLE", f"CREATE TABLE {check_if_exists} ")
 
         create_db_res = self.execute_sql(sql)
         tools.assert_true(create_db_res["status"], "create table failed")
@@ -193,17 +195,15 @@ class StarrocksSQLApiLib(object):
         """
         清空集群环境，删除测试库
         """
-        sql = "drop database %s" % database
-        result = self.execute_sql(sql)
-        return result
+        sql = f"drop database {database}"
+        return self.execute_sql(sql)
 
     def drop_resource(self, resource):
         """
         drop resource
         """
-        sql = "drop resource %s" % resource
-        result = self.execute_sql(sql, True)
-        return result
+        sql = f"drop resource {resource}"
+        return self.execute_sql(sql, True)
 
     def insert_into(self, args_dict):
         """
@@ -211,20 +211,19 @@ class StarrocksSQLApiLib(object):
         """
         self.data_insert_lib.set_table_schema(args_dict)
         sql = self.data_insert_lib.get_insert_schema()
-        result = self.execute_sql(sql)
-        return result
+        return self.execute_sql(sql)
 
     @staticmethod
     def get_sql_from_file(file_name, dir_path=common_sql_path):
         """
         get sql from file
         """
-        file_path = "%s/%s" % (dir_path, file_name)
+        file_path = f"{dir_path}/{file_name}"
         with open(file_path, "r") as f:
             sql = ""
-            for line in f.readlines():
+            for line in f:
                 if not line.startswith("--") and not line.startswith("#"):
-                    sql = sql + " " + line.strip()
+                    sql = f"{sql} {line.strip()}"
         return sql
 
     @staticmethod
@@ -234,10 +233,7 @@ class StarrocksSQLApiLib(object):
         """
         data_path = os.path.join(dir_path, path_name)
         file_list = os.listdir(data_path)
-        file_path_list = []
-        for file_name in file_list:
-            file_path_list.append(os.path.join(data_path, file_name))
-        return file_path_list
+        return [os.path.join(data_path, file_name) for file_name in file_list]
 
     def execute_sql(self, sql, ori=False):
         """execute query"""
@@ -246,25 +242,18 @@ class StarrocksSQLApiLib(object):
                 cursor.execute(sql)
                 result = cursor.fetchall()
                 if isinstance(result, tuple):
-                    index = 0
-                    for res in result:
+                    for index, res in enumerate(result):
                         res = list(res)
-                        # type to str
-                        col_index = 0
-                        for col_data in res:
+                        for col_index, col_data in enumerate(res):
                             if isinstance(col_data, bytes):
                                 try:
                                     res[col_index] = col_data.decode()
                                 except UnicodeDecodeError as e:
                                     log.info("decode sql result by utf-8 error, try str")
                                     res[col_index] = str(col_data)
-                            col_index += 1
-
                         result = list(result)
                         result[index] = tuple(res)
                         result = tuple(result)
-                        index += 1
-
                 res_log = []
 
                 if ori:
@@ -307,8 +296,7 @@ class StarrocksSQLApiLib(object):
         """
         self.data_delete_lib.set_table_schema(args_dict)
         sql = self.data_delete_lib.get_delete_schema()
-        result = self.execute_sql(sql, True)
-        return result
+        return self.execute_sql(sql, True)
 
     def delete_with_query(self, query, table_name, database_name):
         """
@@ -327,7 +315,7 @@ class StarrocksSQLApiLib(object):
 
         self.res_log.append(RESULT_FLAG)
         if not sql_res["status"]:
-            self.res_log.append("E: %s" % str(sql_res["msg"]))
+            self.res_log.append(f'E: {str(sql_res["msg"])}')
         else:
             # msg info no need to be checked
             sql_res = sql_res["result"] if "result" in sql_res else ""
@@ -343,7 +331,7 @@ class StarrocksSQLApiLib(object):
             elif sql_res is not None and str(sql_res).strip() != "":
                 self.res_log.append(str(sql_res))
             else:
-                log.info("SQL result: %s" % sql_res)
+                log.info(f"SQL result: {sql_res}")
 
         self.res_log.append(RESULT_END_FLAT)
 
@@ -358,7 +346,7 @@ class StarrocksSQLApiLib(object):
 
         self.res_log.append(RESULT_FLAG)
         # return code
-        self.res_log.append("%s" % shell_res[0])
+        self.res_log.append(f"{shell_res[0]}")
 
         if shell.endswith("_stream_load"):
             self.res_log.append(
@@ -368,7 +356,7 @@ class StarrocksSQLApiLib(object):
                 )
             )
         else:
-            self.res_log.append("%s" % shell_res[1])
+            self.res_log.append(f"{shell_res[1]}")
 
         self.res_log.append(RESULT_END_FLAT)
 
@@ -382,19 +370,19 @@ class StarrocksSQLApiLib(object):
             return
 
         self.res_log.append(RESULT_FLAG)
-        self.res_log.append("%s" % func_res)
+        self.res_log.append(f"{func_res}")
         self.res_log.append(RESULT_END_FLAT)
 
     def execute_shell(self, shell: str):
         """execute shell"""
 
-        log.info("shell cmd: %s" % shell)
+        log.info(f"shell cmd: {shell}")
 
         cmd_res = subprocess.run(
             shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", timeout=1800, shell=True
         )
 
-        log.info("shell result: code: %s, stdout: %s" % (cmd_res.returncode, cmd_res.stdout))
+        log.info(f"shell result: code: {cmd_res.returncode}, stdout: {cmd_res.stdout}")
         return [
             cmd_res.returncode,
             cmd_res.stdout.rstrip("\n") if cmd_res.returncode == 0 else cmd_res.stderr.rstrip("\n"),
@@ -427,7 +415,7 @@ class StarrocksSQLApiLib(object):
         # replace variable dynamically, only replace right of '='
         match_words = re.compile("\\${([^}]*)}").findall(cmd)
         for each_word in match_words:
-            cmd = cmd.replace("${%s}" % each_word, str(eval("self.%s" % each_word)))
+            cmd = cmd.replace("${%s}" % each_word, str(eval(f"self.{each_word}")))
 
         return var, cmd
 
@@ -442,7 +430,7 @@ class StarrocksSQLApiLib(object):
             res, result_for_log
         """
 
-        res_for_log = res if len(res) < 1000 else res[:1000] + "..."
+        res_for_log = res if len(res) < 1000 else f"{res[:1000]}..."
         # array pretreatment
         if res.startswith("["):
             # list result
@@ -451,11 +439,11 @@ class StarrocksSQLApiLib(object):
                 res = res.replace("null", "None").replace("NULL", "None").split("\n")
             else:
                 # only one line
-                log.info("before: %s" % res)
+                log.info(f"before: {res}")
                 try:
                     res = ast.literal_eval(res.replace("null", "None"))
                 except Exception as e:
-                    log.warn("converse array error: %s, %s" % (res, e))
+                    log.warn(f"converse array error: {res}, {e}")
 
         return res, res_for_log
 
@@ -466,12 +454,15 @@ class StarrocksSQLApiLib(object):
         if exp == "":
             if sql.startswith(SHELL_FLAG):
                 # SHELL check
-                log.info("[%s.check] only check with no Error" % sql_id)
-                tools.assert_equal(0, act[0], "shell %s error: %s" % (sql, act))
+                log.info(f"[{sql_id}.check] only check with no Error")
+                tools.assert_equal(0, act[0], f"shell {sql} error: {act}")
             elif not sql.startswith(FUNCTION_FLAG):
                 # Function, without error msg
-                log.info("[%s.check] only check with no Error" % sql_id)
-                tools.assert_false(str(act).startswith("E: "), "sql result not match: actual with E(%s)" % str(act))
+                log.info(f"[{sql_id}.check] only check with no Error")
+                tools.assert_false(
+                    str(act).startswith("E: "),
+                    f"sql result not match: actual with E({str(act)})",
+                )
             else:
                 # SQL, with empty result
                 exp = []
@@ -480,12 +471,14 @@ class StarrocksSQLApiLib(object):
         if any(re.compile(condition).search(sql) is not None for condition in skip.skip_res_cmd) or any(
             condition in sql for condition in skip.skip_res_cmd
         ):
-            log.info("[%s.check] skip check" % sql_id)
+            log.info(f"[{sql_id}.check] skip check")
             return
 
         tmp_ori_sql = ori_sql[len(UNCHECK_FLAG) :] if ori_sql.startswith(UNCHECK_FLAG) else ori_sql
         if tmp_ori_sql.startswith(SHELL_FLAG):
-            tools.assert_equal(int(exp.split("\n")[0]), act[0], "shell %s error: %s" % (sql, act))
+            tools.assert_equal(
+                int(exp.split("\n")[0]), act[0], f"shell {sql} error: {act}"
+            )
 
             exp_code = exp.split("\n")[0]
             exp_std = "\n".join(exp.split("\n")[1:])
@@ -523,19 +516,17 @@ class StarrocksSQLApiLib(object):
 
                 tools.assert_true(False, "shell result str|re not match,\n[exp]: %s,\n [act]: %s" % (exp_std, act_std))
 
-            else:
-                # str
-                if exp_std != act_std and not re.match(exp_std, act_std, flags=re.S):
-                    tools.assert_true(False, "shell result str not match,\n[exp]: %s,\n [act]: %s" % (exp_std, act_std))
+            elif exp_std != act_std and not re.match(exp_std, act_std, flags=re.S):
+                tools.assert_true(False, "shell result str not match,\n[exp]: %s,\n [act]: %s" % (exp_std, act_std))
 
         elif tmp_ori_sql.startswith(FUNCTION_FLAG):
             # only support str result
             tools.assert_equal(str(exp), str(act))
         else:
             if exp.startswith(REGEX_FLAG):
-                log.info("[check regex]: %s" % exp[len(REGEX_FLAG) :])
+                log.info(f"[check regex]: {exp[len(REGEX_FLAG):]}")
                 tools.assert_regexp_matches(
-                    r"%s" % str(act),
+                    f"{str(act)}",
                     exp[len(REGEX_FLAG) :],
                     "sql result not match regex:\n- [SQL]: %s\n- [exp]: %s\n- [act]: %s\n---"
                     % (sql, exp[len(REGEX_FLAG) :], act),
@@ -554,7 +545,7 @@ class StarrocksSQLApiLib(object):
                         try:
                             expect_res = ast.literal_eval(exp.replace("null", "None"))
                         except Exception as e:
-                            log.warn("converse array error: %s, %s" % (exp, e))
+                            log.warn(f"converse array error: {exp}, {e}")
                             expect_res = str(exp)
 
                     tools.assert_equal(type(expect_res), type(act), "exp and act results' type not match")
@@ -585,11 +576,15 @@ class StarrocksSQLApiLib(object):
                     )
                     return
             except Exception as e:
-                log.warn("analyse result before check error, %s" % e)
+                log.warn(f"analyse result before check error, {e}")
 
             # check str
             log.info("[check type]: Str")
-            tools.assert_equal(type(exp), type(act), "exp and act results' type not match for %s" % sql)
+            tools.assert_equal(
+                type(exp),
+                type(act),
+                f"exp and act results' type not match for {sql}",
+            )
 
             if exp.startswith("E:") and act.startswith("E:"):
                 if "url:" in exp and "url:" in act:
@@ -655,7 +650,7 @@ class StarrocksSQLApiLib(object):
         # write record into db
         log.info("start insert...")
         # delete old info
-        condition = "file='%s' AND log_type='R' AND name='%s' AND version='%s'" % (test_filepath, case_name, version)
+        condition = f"file='{test_filepath}' AND log_type='R' AND name='{case_name}' AND version='{version}'"
         delete_res = self.delete_with_query(condition, T_R_TABLE, T_R_DB)
         tools.assert_true(delete_res["status"], delete_res["msg"])
 
@@ -675,7 +670,7 @@ class StarrocksSQLApiLib(object):
 
             # write record into db
             insert_res = self.insert_into(arg_dict)
-            log.info("insert case sql, round: %s, result: %s" % (insert_round, insert_res))
+            log.info(f"insert case sql, round: {insert_round}, result: {insert_res}")
 
             if not insert_res["status"]:
                 return False
@@ -690,10 +685,10 @@ class StarrocksSQLApiLib(object):
         """save r into file from db"""
         self.connect_starrocks()
         use_res = self.use_database(T_R_DB)
-        tools.assert_true(use_res["status"], "use db: [%s] error" % T_R_DB)
+        tools.assert_true(use_res["status"], f"use db: [{T_R_DB}] error")
 
         self.execute_sql("set group_concat_max_len = 1024000;", True)
-        
+
         # get records
         query_sql = """
         select file, log_type, name, group_concat(log, ""), group_concat(hex(sequence), ",") 
@@ -709,7 +704,9 @@ class StarrocksSQLApiLib(object):
         log.debug(query_sql)
 
         results = self.execute_sql(query_sql, True)
-        tools.assert_true(results["status"], "select from table: [%s] error: %s" % (T_R_TABLE, results))
+        tools.assert_true(
+            results["status"], f"select from table: [{T_R_TABLE}] error: {results}"
+        )
         results = results["result"]
 
         self.close_starrocks()
@@ -723,8 +720,7 @@ class StarrocksSQLApiLib(object):
             file_dict.setdefault(file, {})[name] = case_log
 
         # if part mode, merge the result w
-        for file in file_dict.keys():
-            logs = file_dict[file]
+        for file, logs in file_dict.items():
             file_dict[file] = self.merge_case_info(part, file, logs)
 
         for file, logs in file_dict.items():
@@ -736,7 +732,7 @@ class StarrocksSQLApiLib(object):
             if not os.path.exists(os.path.dirname(file_path)):
                 os.makedirs(os.path.dirname(file_path))
 
-            lines = list()
+            lines = []
             for case_name in case_names:
                 lines.append(logs.get(case_name, ""))
                 if case_name in logs.keys():
@@ -805,17 +801,18 @@ class StarrocksSQLApiLib(object):
     def _get_case_names(self, t_file):
         file_path = os.path.join(self.root_path, t_file)
 
-        case_names = list()
+        case_names = []
         if not os.path.exists(file_path):
             return case_names
 
         with open(file_path, "r") as f:
             contents = f.readlines()
 
-        for line in contents:
-            if not line.startswith(NAME_FLAG):
-                continue
-            case_names.append(re.compile("name: ([a-zA-Z0-9_-]+)").findall(line)[0])
+        case_names.extend(
+            re.compile("name: ([a-zA-Z0-9_-]+)").findall(line)[0]
+            for line in contents
+            if line.startswith(NAME_FLAG)
+        )
         return case_names
 
     def show_schema_change_task(self):
@@ -829,8 +826,8 @@ class StarrocksSQLApiLib(object):
     def wait_load_finish(self, label, time_out=300):
         times = 0
         while times < time_out:
-            result = self.execute_sql('show load where label = "' + label + '"', True)
-            log.info('show load where label = "' + label + '"')
+            result = self.execute_sql(f'show load where label = "{label}"', True)
+            log.info(f'show load where label = "{label}"')
             log.info(result)
             if len(result["result"]) > 0:
                 load_state = result["result"][0][2]
@@ -846,7 +843,7 @@ class StarrocksSQLApiLib(object):
         tools.assert_less(times, time_out, "load failed, timeout 300s")
 
     def show_routine_load(self, routine_load_task_name):
-        show_sql = "show routine load for %s" % routine_load_task_name
+        show_sql = f"show routine load for {routine_load_task_name}"
         return self.execute_sql(show_sql, True)
 
     def check_routine_load_progress(self, sum_data_count, task_name):
@@ -861,7 +858,7 @@ class StarrocksSQLApiLib(object):
                 count += 1
                 continue
             for partition in list(progress_dict.keys()):
-                if "OFFSET_ZERO" == progress_dict[partition]:
+                if progress_dict[partition] == "OFFSET_ZERO":
                     del progress_dict[partition]
             # The progress is counted from offset 0. So the actual number of message should +1.
             current_data_count = sum(int(progress_dict[key]) for key in progress_dict) + len(progress_dict.items())
@@ -882,13 +879,8 @@ class StarrocksSQLApiLib(object):
         while count < 30:
             res = self.show_schema_change_task()
             tools.assert_true(res["status"], "show schema change task error")
-            log.info("show schema result: %s" % res)
-            number = 0
-            for result in res["result"]:
-                if result[9] == "FINISHED":
-                    number += 1
-                else:
-                    continue
+            log.info(f"show schema result: {res}")
+            number = sum(1 for result in res["result"] if result[9] == "FINISHED")
             if number == len(res["result"]):
                 load_finished = True
                 break
@@ -907,11 +899,8 @@ class StarrocksSQLApiLib(object):
         while count < check_count:
             res = self.execute_sql(show_sql, True)
             status = res["result"][-1][8]
-            if status != "FINISHED":
-                time.sleep(5)
-            else:
-                # sleep another 5s to avoid FE's async action.
-                time.sleep(5)
+            time.sleep(5)
+            if status == "FINISHED":
                 break
             count += 1
         tools.assert_equal("FINISHED", status, "wait alter table finish error")
@@ -921,15 +910,15 @@ class StarrocksSQLApiLib(object):
         wait pipe load finish
         """
         status = ""
-        show_sql = "select state from information_schema.pipes where database_name='{}' and pipe_name='{}'".format(db_name, pipe_name)
+        show_sql = f"select state from information_schema.pipes where database_name='{db_name}' and pipe_name='{pipe_name}'"
         count = 0
-        print("waiting for pipe {}.{} finish".format(db_name, pipe_name))
+        print(f"waiting for pipe {db_name}.{pipe_name} finish")
         while count < check_count:
             res = self.execute_sql(show_sql, True)
             print(res)
             status = res["result"][0][0]
             if status != "FINISHED":
-                print("pipe status is " + status)
+                print(f"pipe status is {status}")
                 time.sleep(1)
             else:
                 # sleep another 5s to avoid FE's async action.
@@ -944,19 +933,25 @@ class StarrocksSQLApiLib(object):
         assert mv_name is hit in query
         """
         time.sleep(1)
-        sql = "explain %s" % (query)
+        sql = f"explain {query}"
         res = self.execute_sql(sql, True)
         print(res)
-        tools.assert_true(str(res["result"]).find(mv_name) > 0, "assert mv %s is not found" % (mv_name))
+        tools.assert_true(
+            str(res["result"]).find(mv_name) > 0,
+            f"assert mv {mv_name} is not found",
+        )
 
     def check_no_hit_materialized_view(self, query, mv_name):
         """
         assert mv_name is hit in query
         """
         time.sleep(1)
-        sql = "explain %s" % (query)
+        sql = f"explain {query}"
         res = self.execute_sql(sql, True)
-        tools.assert_false(str(res["result"]).find(mv_name) > 0, "assert mv %s is not found" % (mv_name))
+        tools.assert_false(
+            str(res["result"]).find(mv_name) > 0,
+            f"assert mv {mv_name} is not found",
+        )
 
     def wait_alter_table_finish(self, alter_type="COLUMN"):
         """
@@ -966,14 +961,14 @@ class StarrocksSQLApiLib(object):
         sleep_time = 0
         while True:
             res = self.execute_sql(
-                "SHOW ALTER TABLE %s ORDER BY CreateTime DESC LIMIT 1" % alter_type,
+                f"SHOW ALTER TABLE {alter_type} ORDER BY CreateTime DESC LIMIT 1",
                 True,
             )
             if (not res["status"]) or len(res["result"]) <= 0:
                 return ""
 
             status = res["result"][0][9]
-            if status == "FINISHED" or status == "CANCELLED" or status == "":
+            if status in ["FINISHED", "CANCELLED", ""]:
                 if sleep_time <= 1:
                     time.sleep(1)
                 break
@@ -988,14 +983,14 @@ class StarrocksSQLApiLib(object):
         status = ""
         while True:
             res = self.execute_sql(
-                "SHOW ALTER TABLE %s ORDER BY CreateTime DESC LIMIT 1" % alter_type,
+                f"SHOW ALTER TABLE {alter_type} ORDER BY CreateTime DESC LIMIT 1",
                 True,
             )
             if (not res["status"]) or len(res["result"]) <= 0:
                 return ""
 
             status = res["result"][0][6]
-            if status == "FINISHED" or status == "CANCELLED" or status == "":
+            if status in ["FINISHED", "CANCELLED", ""]:
                 break
             time.sleep(0.5)
         tools.assert_equal("FINISHED", status, "wait alter table finish error")
@@ -1009,7 +1004,7 @@ class StarrocksSQLApiLib(object):
         while True:
             if count > 60:
                 tools.assert_true(False, "acquire dictionary timeout for 60s")
-            sql = "explain costs select distinct %s from %s" % (column_name, table_name)
+            sql = f"explain costs select distinct {column_name} from {table_name}"
             res = self.execute_sql(sql, True)
             if not res["status"]:
                 tools.assert_true(False, "acquire dictionary error")
@@ -1022,7 +1017,7 @@ class StarrocksSQLApiLib(object):
         assert table_name:column_name has global dict
         """
         time.sleep(1)
-        sql = "explain costs select distinct %s from %s" % (column_name, table_name)
+        sql = f"explain costs select distinct {column_name} from {table_name}"
         res = self.execute_sql(sql, True)
         tools.assert_true(str(res["result"]).find("Decode") > 0, "assert dictionary error")
 
@@ -1031,7 +1026,7 @@ class StarrocksSQLApiLib(object):
         assert table_name:column_name has global dict
         """
         time.sleep(1)
-        sql = "explain costs select distinct %s from %s" % (column_name, table_name)
+        sql = f"explain costs select distinct {column_name} from {table_name}"
         res = self.execute_sql(sql, True)
         tools.assert_true(str(res["result"]).find("Decode") <= 0, "assert dictionary error")
 
@@ -1041,7 +1036,7 @@ class StarrocksSQLApiLib(object):
         """
         status = ""
         while True:
-            sql = "select STATE from information_schema.task_runs where TASK_NAME = '%s'" % task_name
+            sql = f"select STATE from information_schema.task_runs where TASK_NAME = '{task_name}'"
             res = self.execute_sql(sql, True)
             if not res["status"]:
                 tools.assert_true(False, "acquire task state error")
@@ -1051,10 +1046,9 @@ class StarrocksSQLApiLib(object):
             time.sleep(1)
 
     def check_es_table_metadata_ready(self, table_name):
-        check_sql = "SELECT * FROM %s limit 1" % table_name
-        count = 0
+        check_sql = f"SELECT * FROM {table_name} limit 1"
         log.info("==========begin check if es table metadata is ready==========")
-        while count < 60:
+        for _ in range(60):
             res = self.execute_sql(check_sql, True)
             if res["status"]:
                 log.info("==========check success: es table metadata is ready==========")
@@ -1068,7 +1062,6 @@ class StarrocksSQLApiLib(object):
                     return
                 else:
                     time.sleep(10)
-            count += 1
         tools.assert_true(False, "check es table metadata 600s timeout")
 
     def _stream_load(self, label, database_name, table_name, filepath, headers=None, meta_sync=True):
@@ -1088,21 +1081,19 @@ class StarrocksSQLApiLib(object):
             "curl",
             "--location-trusted",
             "-u",
-            "%s:%s" % (self.mysql_user, self.mysql_password),
+            f"{self.mysql_user}:{self.mysql_password}",
             "-T",
             filepath,
             "-XPUT",
             "-H",
-            "label:%s" % label,
+            f"label:{label}",
         ]
 
         if headers:
             for k, v in headers.items():
-                params.append("-H")
-                params.append("%s:%s" % (k, v))
-
+                params.extend(("-H", f"{k}:{v}"))
         params.append(url)
-        stream_load_sql = " ".join(param for param in params)
+        stream_load_sql = " ".join(params)
         log.info(stream_load_sql)
 
         cmd_res = subprocess.run(
@@ -1123,17 +1114,10 @@ class StarrocksSQLApiLib(object):
             self.meta_sync()
 
         if res["Status"] == "Publish Timeout":
-            cmd = "curl -s --location-trusted -u %s:%s http://%s:%s/api/%s/get_load_state?label=%s" % (
-                self.mysql_user,
-                self.mysql_password,
-                self.mysql_host,
-                self.http_port,
-                database_name,
-                label,
-            )
+            cmd = f"curl -s --location-trusted -u {self.mysql_user}:{self.mysql_password} http://{self.mysql_host}:{self.http_port}/api/{database_name}/get_load_state?label={label}"
             print(cmd)
             cmd = cmd.split(" ")
-            for i in range(60):
+            for _ in range(60):
                 time.sleep(3)
                 res = subprocess.run(
                     cmd,
@@ -1149,9 +1133,8 @@ class StarrocksSQLApiLib(object):
                 res = json.loads(res.stdout)
                 if res["state"] == "VISIBLE":
                     break
-                else:
-                    log.error(res)
-                    res["Status"] = "Failed"
+                log.error(res)
+                res["Status"] = "Failed"
         return res
 
     def prepare_data(self, data_name, db):
@@ -1161,16 +1144,18 @@ class StarrocksSQLApiLib(object):
         # create tables
         create_table_sqls = self.get_sql_from_file("create.sql", dir_path=os.path.join(common_sql_path, data_name))
         res = self.execute_sql(create_table_sqls, True)
-        tools.assert_true(res["status"], "create %s table error, %s" % (data_name, res["msg"]))
+        tools.assert_true(
+            res["status"], f'create {data_name} table error, {res["msg"]}'
+        )
         # load data
         data_files = self.get_common_data_files(data_name)
         for data in data_files:
             if ".gitkeep" in data:
                 continue
-            label = "%s_load_label_%s" % (data_name, uuid.uuid1().hex)
+            label = f"{data_name}_load_label_{uuid.uuid1().hex}"
             file_name = data.split("/")[-1]
             table_name = file_name.split(".")[0]
-            log.info("Load %s..." % table_name)
+            log.info(f"Load {table_name}...")
             headers = {"column_separator": "|"}
 
             # tpcds prepare
@@ -1214,8 +1199,12 @@ class StarrocksSQLApiLib(object):
                                                ss_list_price,ss_sales_price,ss_ext_discount_amt,ss_ext_sales_price,ss_ext_wholesale_cost,\
                                                ss_ext_list_price,ss_ext_tax,ss_coupon_amt,ss_net_paid,ss_net_paid_inc_tax,ss_net_profit",
                 }
-                if table_name in switch.keys():
+                if table_name in switch:
                     headers["columns"] = switch[table_name]
 
             res = self._stream_load(label, db, table_name, data, headers)
-            tools.assert_equal(res["Status"], "Success", "Prepare %s data error: %s" % (data_name, res["Message"]))
+            tools.assert_equal(
+                res["Status"],
+                "Success",
+                f'Prepare {data_name} data error: {res["Message"]}',
+            )

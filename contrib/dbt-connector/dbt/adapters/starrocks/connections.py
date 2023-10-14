@@ -80,7 +80,6 @@ class StarRocksCredentials(Credentials):
 
 
 def _parse_version(result):
-    default_version = (999, 999, 999)
     first_part = None
 
     if '-' in result:
@@ -91,7 +90,8 @@ def _parse_version(result):
     if first_part and len(first_part.split('.')) == 3:
         return first_part[0], first_part[1], first_part[2]
 
-    return default_version
+    else:
+        return 999, 999, 999
 
 class StarRocksConnectionManager(SQLConnectionManager):
     TYPE = 'starrocks'
@@ -103,8 +103,12 @@ class StarRocksConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = cls.get_credentials(connection.credentials)
-        kwargs = {"host": credentials.host, "username": credentials.username,
-                  "password": credentials.password, "database": credentials.catalog + "." + credentials.schema}
+        kwargs = {
+            "host": credentials.host,
+            "username": credentials.username,
+            "password": credentials.password,
+            "database": f"{credentials.catalog}.{credentials.schema}",
+        }
 
         if credentials.port:
             kwargs["port"] = credentials.port
@@ -125,8 +129,9 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 connection.state = 'open'
             except mysql.connector.Error as e:
 
-                logger.debug("Got an error when attempting to open a StarRocks "
-                             "connection: '{}'".format(e))
+                logger.debug(
+                    f"Got an error when attempting to open a StarRocks connection: '{e}'"
+                )
 
                 connection.handle = None
                 connection.state = 'fail'
@@ -139,13 +144,13 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 cursor.execute("select current_version()")
                 connection.handle.server_version = _parse_version(cursor.fetchone()[0])
             except Exception as e:
-                logger.debug("Got an error when obtain StarRocks version exception: '{}'".format(e))
+                logger.debug(f"Got an error when obtain StarRocks version exception: '{e}'")
         else:
             version = credentials.version.strip().split('.')
             if len(version) == 3:
                 connection.handle.server_version = (int(version[0]), int(version[1]), int(version[2]))
             else:
-                logger.debug("Config version '{}' is invalid".format(version))
+                logger.debug(f"Config version '{version}' is invalid")
 
         return connection
 
@@ -162,14 +167,12 @@ class StarRocksConnectionManager(SQLConnectionManager):
             yield
 
         except mysql.connector.DatabaseError as e:
-            logger.debug('StarRocks error: {}'.format(str(e)))
+            logger.debug(f'StarRocks error: {str(e)}')
 
             try:
                 self.rollback_if_open()
             except mysql.connector.Error:
                 logger.debug("Failed to release connection!")
-                pass
-
             raise dbt.exceptions.DbtDatabaseError(str(e).strip()) from e
 
         except Exception as e:
@@ -187,15 +190,9 @@ class StarRocksConnectionManager(SQLConnectionManager):
     @classmethod
     def get_response(cls, cursor) -> AdapterResponse:
         code = "SUCCESS"
-        num_rows = 0
-
-        if cursor is not None and cursor.rowcount is not None:
-            num_rows = cursor.rowcount
-
+        num_rows = 0 if cursor is None or cursor.rowcount is None else cursor.rowcount
         # There's no real way to get the status from the mysql-connector-python driver.
         # So just return the default value.
         return AdapterResponse(
-            _message="{} {}".format(code, num_rows),
-            rows_affected=num_rows,
-            code=code
+            _message=f"{code} {num_rows}", rows_affected=num_rows, code=code
         )

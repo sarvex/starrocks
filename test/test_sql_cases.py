@@ -54,7 +54,7 @@ def doc_func(_, num, param):
     if param[0][0].file == "":
         return "%-5d: %s" % (num, param[0][0].name)
     else:
-        return "%-5d: %s" % (num, param[0][0].file + ":" + param[0][0].name)
+        return "%-5d: %s" % (num, f"{param[0][0].file}:{param[0][0].name}")
 
 
 def name_func(testcase_func, param_num, param):
@@ -75,8 +75,8 @@ class TestSQLCases(sr_sql_lib.StarrocksSQLApiLib):
         """
         super(TestSQLCases, self).__init__(*args, **kwargs)
         self.case_info: choose_cases.ChooseCase.CaseTR
-        self.db = list()
-        self.resource = list()
+        self.db = []
+        self.resource = []
         self._check_db_unique()
 
     def setUp(self, *args, **kwargs):
@@ -102,7 +102,10 @@ class TestSQLCases(sr_sql_lib.StarrocksSQLApiLib):
         self.close_starrocks()
 
         if record_mode:
-            tools.assert_true(res, "Save %s.%s result error" % (self.case_info.file, self.case_info.name))
+            tools.assert_true(
+                res,
+                f"Save {self.case_info.file}.{self.case_info.name} result error",
+            )
 
     # -------------------------------------------
     #         [CASE]
@@ -161,9 +164,9 @@ Start to run: %s
 
                 # analyse var set
                 var, sql = self.analyse_var(sql)
-                print("[SHELL]: %s" % sql)
+                print(f"[SHELL]: {sql}")
 
-                log.info("[%s] SHELL: %s" % (sql_id, sql))
+                log.info(f"[{sql_id}] SHELL: {sql}")
                 actual_res = self.execute_shell(sql)
 
                 if record_mode:
@@ -175,16 +178,16 @@ Start to run: %s
 
                 # analyse var set
                 var, sql = self.analyse_var(sql)
-                print("[FUNCTION]: %s" % sql)
+                print(f"[FUNCTION]: {sql}")
 
-                log.info("[%s] FUNCTION: %s" % (sql_id, sql))
-                actual_res = eval("self.%s" % sql)
+                log.info(f"[{sql_id}] FUNCTION: {sql}")
+                actual_res = eval(f"self.{sql}")
 
                 if record_mode:
                     self.record_function_res(sql, actual_res)
             else:
                 # sql
-                log.info("[%s] SQL: %s" % (sql_id, sql))
+                log.info(f"[{sql_id}] SQL: {sql}")
 
                 # order flag
                 if sql.startswith(sr_sql_lib.ORDER_FLAG):
@@ -195,12 +198,16 @@ Start to run: %s
                 var, sql = self.analyse_var(sql)
 
                 actual_res = self.execute_sql(sql)
-                print("[SQL]: %s" % sql)
+                print(f"[SQL]: {sql}")
 
                 if record_mode:
                     self.treatment_record_res(sql, actual_res)
 
-                actual_res = actual_res["result"] if actual_res["status"] else "E: %s" % str(actual_res["msg"])
+                actual_res = (
+                    actual_res["result"]
+                    if actual_res["status"]
+                    else f'E: {str(actual_res["msg"])}'
+                )
 
                 # pretreatment actual res
                 actual_res, actual_res_log = self.pretreatment_res(actual_res)
@@ -209,7 +216,11 @@ Start to run: %s
                 # check mode only work in validating mode
                 # pretreatment expect res
                 expect_res = case_info.result[sql_id]
-                expect_res_for_log = expect_res if len(expect_res) < 1000 else expect_res[:1000] + "..."
+                expect_res_for_log = (
+                    expect_res
+                    if len(expect_res) < 1000
+                    else f"{expect_res[:1000]}..."
+                )
 
                 log.info("[%s.result]: \n\t- [exp]: %s\n\t- [act]: %s" % (sql_id, expect_res_for_log, actual_res))
 
@@ -223,8 +234,8 @@ Start to run: %s
                 self.__setattr__(var, actual_res)
 
     def _init_data(self, sql_list: List[str]) -> List[str]:
-        self.db = list()
-        self.resource = list()
+        self.db = []
+        self.resource = []
 
         sql_list = self._replace_uuid_variables(sql_list)
 
@@ -238,27 +249,27 @@ Start to run: %s
 
         self._clear_db_and_resource_if_exists()
 
-        if len(self.db) == 0:
+        if not self.db:
             self._create_and_use_db()
 
         return sql_list
 
     def _clear_db_and_resource_if_exists(self):
         for each_db in self.db:
-            log.info("init drop db: %s" % each_db)
+            log.info(f"init drop db: {each_db}")
             self.drop_database(each_db)
 
         for each_resource in self.resource:
-            log.info("init drop resource: %s" % each_resource)
+            log.info(f"init drop resource: {each_resource}")
             self.drop_resource(each_resource)
 
     def _create_and_use_db(self):
-        db_name = "test_db_%s" % uuid.uuid1().hex
+        db_name = f"test_db_{uuid.uuid1().hex}"
         self.db.append(db_name)
-        self.execute_sql("CREATE DATABASE %s;" % db_name)
-        self.execute_sql("USE %s;" % db_name)
-        print("[SQL]: CREATE DATABASE %s;" % db_name)
-        print("[SQL]: USE %s;" % db_name)
+        self.execute_sql(f"CREATE DATABASE {db_name};")
+        self.execute_sql(f"USE {db_name};")
+        print(f"[SQL]: CREATE DATABASE {db_name};")
+        print(f"[SQL]: USE {db_name};")
 
     def _check_db_unique(self):
         all_db_dict = dict()
@@ -273,7 +284,7 @@ Start to run: %s
 
     @staticmethod
     def _replace_uuid_variables(sql_list: List[str]) -> List[str]:
-        ret = list()
+        ret = []
         variable_dict = dict()
         for sql in sql_list:
             uuid_vars = re.findall(r"\${(uuid[0-9]*)}", sql)
@@ -289,14 +300,15 @@ Start to run: %s
 
     @staticmethod
     def _get_db_name(sql: str) -> str:
-        db_name = ""
-        if "CREATE DATABASE" in sql.upper():
-            db_name = sql.rstrip(";").strip().split(" ")[-1]
-        return db_name
+        return (
+            sql.rstrip(";").strip().split(" ")[-1]
+            if "CREATE DATABASE" in sql.upper()
+            else ""
+        )
 
     @staticmethod
     def _get_resource_name(sql: str) -> str:
-        matches = list()
+        matches = []
         if "CREATE EXTERNAL RESOURCE" in sql.upper():
             matches = re.findall(r'CREATE EXTERNAL RESOURCE \"?([a-zA-Z0-9_-]+)\"?', sql, flags=re.IGNORECASE)
         return matches[0] if len(matches) > 0 else ""

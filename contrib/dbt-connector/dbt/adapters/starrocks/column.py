@@ -21,7 +21,7 @@ from dbt.adapters.base.column import Column
 class StarRocksColumn(Column):
     @property
     def quoted(self) -> str:
-        return "`{}`".format(self.column)
+        return f"`{self.column}`"
 
     def __repr__(self) -> str:
         return f"<StarRocksColumn {self.name} ({self.data_type})>"

@@ -21,12 +21,7 @@ import pyarrow.parquet as pq
 output1 = "./issue_17693_1.parquet"
 output2 = "./issue_17693_2.parquet"
 
-data = [
-    pa.array(
-        [["1"] for i in range(1000)],
-        type=pa.list_(pa.string()),
-    ),
-]
+data = [pa.array([["1"] for _ in range(1000)], type=pa.list_(pa.string()))]
 
 columns = [
     "issue_17693_c0",

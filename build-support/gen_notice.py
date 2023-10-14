@@ -21,12 +21,12 @@ import sys
 def gen_combined_notice(licenses_paths, outpath, gen_all):
     all = defaultdict(lambda: [None, None])
     for licenses_path in licenses_paths.split(','):
-        notices = glob.glob(licenses_path + '/NOTICE-*.txt')
+        notices = glob.glob(f'{licenses_path}/NOTICE-*.txt')
         for n in notices:
             name = re.search(r'NOTICE-(.+)\.txt', n).group(1)
             all[name][1] = n
         if gen_all:
-            licenses = glob.glob(licenses_path + '/LICENSE-*.txt')
+            licenses = glob.glob(f'{licenses_path}/LICENSE-*.txt')
             for l in licenses:
                 name = re.search(r'LICENSE-(.+)\.txt', l).group(1)
                 all[name][0] = l

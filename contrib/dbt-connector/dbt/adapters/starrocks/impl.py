@@ -63,15 +63,14 @@ class StarRocksAdapter(SQLAdapter):
         return "string"
 
     def quote(self, identifier):
-        return "`{}`".format(identifier)
+        return f"`{identifier}`"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(
             LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database}
         )
 
-        exists = True if schema in [row[0] for row in results] else False
-        return exists
+        return schema in [row[0] for row in results]
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
         if not self.Relation.get_default_include_policy().database:
@@ -114,17 +113,17 @@ class StarRocksAdapter(SQLAdapter):
         with executor(self.config) as tpe:
             futures: List[Future[agate.Table]] = []
             for info, schemas in schema_map.items():
-                for schema in schemas:
-                    futures.append(
-                        tpe.submit_connected(
-                            self,
-                            schema,
-                            self._get_one_catalog,
-                            info,
-                            [schema],
-                            manifest,
-                        )
+                futures.extend(
+                    tpe.submit_connected(
+                        self,
+                        schema,
+                        self._get_one_catalog,
+                        info,
+                        [schema],
+                        manifest,
                     )
+                    for schema in schemas
+                )
             catalogs, exceptions = catch_as_completed(futures)
         return catalogs, exceptions
 
@@ -141,8 +140,7 @@ class StarRocksAdapter(SQLAdapter):
 
     @available
     def is_before_version(self, version: str) -> bool:
-        conn = self.connections.get_if_exists()
-        if conn:
+        if conn := self.connections.get_if_exists():
             server_version = conn.handle.server_version
             version_detail = version.split(".")
             version_detail = (int(version_detail[0]), int(version_detail[1]), int(version_detail[2]))
@@ -151,17 +149,16 @@ class StarRocksAdapter(SQLAdapter):
             elif version_detail[0] == server_version[0] and version_detail[1] > server_version[1]:
                 return True
             elif version_detail[0] == server_version[0] and version_detail[1] == server_version[1] \
-                    and version_detail[2] > server_version[2]:
+                        and version_detail[2] > server_version[2]:
                 return True
         return False
 
     @available
     def current_version(self):
-        conn = self.connections.get_if_exists()
-        if conn:
+        if conn := self.connections.get_if_exists():
             server_version = conn.handle.server_version
             if server_version != (999, 999, 999):
-                return "{}.{}.{}".format(server_version[0], server_version[1], server_version[2])
+                return f"{server_version[0]}.{server_version[1]}.{server_version[2]}"
         return 'UNKNOWN'
 
     def _get_one_catalog(

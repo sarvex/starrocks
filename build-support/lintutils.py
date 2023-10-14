@@ -87,8 +87,8 @@ def get_sources(source_dir, exclude_globs=[]):
             path = os.path.abspath(path)
 
             # filter out files that match the globs in the globs file
-            if any([fnmatch(path, glob) for glob in exclude_globs]):
-               continue
+            if any(fnmatch(path, glob) for glob in exclude_globs):
+                continue
 
             sources.append(path)
     return sources
@@ -101,9 +101,7 @@ def stdout_pathcolonline(completed_process, filenames):
     stdout and return the set of actually reported file names
     """
     returncode, stdout, stderr = completed_process
-    bfilenames = set()
-    for filename in filenames:
-        bfilenames.add(filename.encode('utf-8') + b':')
+    bfilenames = {filename.encode('utf-8') + b':' for filename in filenames}
     problem_files = set()
     for line in stdout.splitlines():
         for filename in bfilenames:

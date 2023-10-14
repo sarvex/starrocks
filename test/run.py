@@ -122,11 +122,11 @@ if __name__ == "__main__":
         if opt in ("-t", "--timeout"):
             timeout = int(arg)
 
-        if opt == "--file_filter":
-            file_filter = arg
-
         if opt == "--case_filter":
             case_filter = arg
+
+        elif opt == "--file_filter":
+            file_filter = arg
 
         if opt in ("-l", "--list"):
             collect = True
@@ -137,11 +137,11 @@ if __name__ == "__main__":
         if opt in ("-a", "--attr"):
             attr = arg
 
-        if opt == "--skip_reruns":
-            skip_reruns = True
-
         if opt == "--config":
             config = arg
+
+        elif opt == "--skip_reruns":
+            skip_reruns = True
 
     # set environment
     os.environ["record_mode"] = "true" if record else "false"
@@ -172,14 +172,14 @@ if __name__ == "__main__":
         print("-c|--concurrency must > 0!")
         print_help()
         sys.exit(3)
-    argv += ["--processes=%s" % concurrency]
+    argv += [f"--processes={concurrency}"]
 
     # timeout setting of each case
     if timeout <= 0:
         print("-t|--timeout must > 0!")
         print_help()
         sys.exit(4)
-    argv += ["--process-timeout=%s" % timeout]
+    argv += [f"--process-timeout={timeout}"]
 
     # test xml
     if not record:
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     if collect:
         argv += ["--collect-only"]
 
-    print("Test cmd: %s" % " ".join(argv))
+    print(f'Test cmd: {" ".join(argv)}')
 
     nose.run(argv=argv)
 

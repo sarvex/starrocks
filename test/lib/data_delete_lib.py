@@ -37,11 +37,11 @@ class DataDeleteLib(object):
         """return delete sql"""
         sql = "delete from "
         if "database_name" in self.args:
-            sql += "%s." % (self.args["database_name"])
+            sql += f'{self.args["database_name"]}.'
         if "table_name" in self.args:
-            sql += "%s " % (self.args["table_name"])
+            sql += f'{self.args["table_name"]} '
         if "partition_desc" in self.args:
-            sql += "partition (%s) " % (", ".join(self.args["partition_desc"]))
+            sql += f'partition ({", ".join(self.args["partition_desc"])}) '
         if "query" in self.args and self.args["query"]:
             sql += "where " + self.args["query"]
         sql += ";"

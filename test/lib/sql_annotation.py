@@ -55,13 +55,13 @@ Start to run: %s
             # drop database
             for each_db in args[0].db:
                 # drop database in init
-                log.info("init drop db: %s" % each_db)
+                log.info(f"init drop db: {each_db}")
                 args[0].drop_database(each_db)
 
             # drop resource
             for each_resource in args[0].resource:
                 # drop resource in init
-                log.info("init drop resource: %s" % each_resource)
+                log.info(f"init drop resource: {each_resource}")
                 args[0].drop_resource(each_resource)
 
             return func(*args, **kwargs)

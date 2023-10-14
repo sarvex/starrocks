@@ -17,6 +17,7 @@
   limitations under the License.
 """
 
+
 import argparse
 import os
 import sys
@@ -98,7 +99,7 @@ BuiltinFunctions::FunctionTables BuiltinFunctions::_fn_tables = {
 }
 """)
 
-function_list = list()
+function_list = []
 function_set = set()
 function_signature_set = set()
 
@@ -106,7 +107,7 @@ def add_function(fn_data):
     entry = dict()
     if fn_data[0] in function_set:
         print("=================================================================")
-        print("Duplicated function id: " + str(fn_data))
+        print(f"Duplicated function id: {str(fn_data)}")
         print("=================================================================")
         exit(1)
     function_set.add(fn_data[0])
@@ -116,11 +117,13 @@ def add_function(fn_data):
     entry["ret"] = fn_data[2]
     entry["args"] = fn_data[3]
 
-    function_signature = "%s#%s#(%s)" % (entry["ret"], entry["name"], ", ".join(entry["args"]))
+    function_signature = (
+        f'{entry["ret"]}#{entry["name"]}#({", ".join(entry["args"])})'
+    )
 
     if function_signature in function_signature_set:
         print("=================================================================")
-        print("Duplicated function signature: " + function_signature)
+        print(f"Duplicated function signature: {function_signature}")
         print("=================================================================")
         exit(1)
     function_signature_set.add(function_signature)
@@ -133,13 +136,13 @@ def add_function(fn_data):
     else:
         entry["args_nums"] = len(fn_data[3])
 
-    entry["fn"] = "&" + fn_data[4] if fn_data[4] != "nullptr" else "nullptr"
+    entry["fn"] = f"&{fn_data[4]}" if fn_data[4] != "nullptr" else "nullptr"
 
     if len(fn_data) >= 7:
-        entry["prepare"] = "&" + fn_data[5] if fn_data[5] != "nullptr" else "nullptr"
-        entry["close"] = "&" + fn_data[6] if fn_data[6] != "nullptr" else "nullptr"
-    
-    if fn_data[-1] == True or fn_data[-1] == False:
+        entry["prepare"] = f"&{fn_data[5]}" if fn_data[5] != "nullptr" else "nullptr"
+        entry["close"] = f"&{fn_data[6]}" if fn_data[6] != "nullptr" else "nullptr"
+
+    if fn_data[-1] in [True, False]:
         entry["exception_safe"] = str(fn_data[-1]).lower()
     else:
         entry["exception_safe"] = "true"
@@ -153,7 +156,9 @@ def generate_fe(path):
 
     def gen_fe_fn(fnm):
         fnm["args_types"] = ", " if len(fnm["args"]) > 0 else ""
-        fnm["args_types"] = fnm["args_types"] + ", ".join(["Type." + i for i in fnm["args"] if i != "..."])
+        fnm["args_types"] += ", ".join(
+            [f"Type.{i}" for i in fnm["args"] if i != "..."]
+        )
         fnm["has_vargs"] = "true" if "..." in fnm["args"] else "false"
 
         return fn_template.substitute(fnm)
@@ -178,8 +183,8 @@ def generate_cpp(path):
             res ='{%d, {"%s", %d, %s' % (
                 fnm["id"], fnm["name"], fnm["args_nums"], fnm["fn"])
         if "exception_safe" in fnm:
-            res = res + ", " + str(fnm["exception_safe"])
-            
+            res = f"{res}, " + str(fnm["exception_safe"])
+
         return res + "}}"
 
     value = dict()
@@ -205,14 +210,14 @@ if __name__ == '__main__':
     for function in functions.vectorized_functions:
         add_function(function)
 
-    be_functions_dir = args.cpp_path + "/opcode"
+    be_functions_dir = f"{args.cpp_path}/opcode"
     if not os.path.exists(be_functions_dir):
         os.makedirs(be_functions_dir)
 
-    fe_functions_dir = args.java_path + "/com/starrocks/builtins"
+    fe_functions_dir = f"{args.java_path}/com/starrocks/builtins"
     if not os.path.exists(fe_functions_dir):
         os.makedirs(fe_functions_dir)
 
-    generate_fe(fe_functions_dir + "/VectorizedBuiltinFunctions.java")
-    generate_cpp(be_functions_dir + "/builtin_functions.cpp")
+    generate_fe(f"{fe_functions_dir}/VectorizedBuiltinFunctions.java")
+    generate_cpp(f"{be_functions_dir}/builtin_functions.cpp")
 
