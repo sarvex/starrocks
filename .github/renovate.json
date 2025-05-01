@@ -1,0 +1,4 @@
+{
+  "extends": ["github>sarvex/renovate-configs:rust"]
+  "extends": ["github>sarvex/renovate-configs:cpp"]
+}
